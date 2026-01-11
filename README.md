@@ -147,4 +147,8 @@ FLUSH PRIVILEGES;
 Разработка и поддержка.
 GitHub: [@serg-akulov](https://github.com/serg-akulov)
 
+## Благодарности
+
+Огромное спасибо [@dedkovd](https://github.com/dedkovd) за реализацию Docker-контейнеризации — это сделало проект значительно удобнее для развертывания.
+
 Copyright © 2025. Released under the MIT License.
