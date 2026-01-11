@@ -34,6 +34,42 @@ services:
     networks:
       - turner-network
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: turner-backend
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=${DB_NAME:-turner_db}
+      - DB_USER=${DB_USER:-turner_user}
+      - DB_PASS=${DB_PASS:-turner_password}
+      - ADMIN_PANEL_PASSWORD=${ADMIN_PANEL_PASSWORD:-admin123}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this}
+    networks:
+      - turner-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: turner-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_BOT_TOKEN=${BOT_TOKEN}
+    networks:
+      - turner-network
+
 networks:
   turner-network:
     driver: bridge

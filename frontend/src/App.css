@@ -1,0 +1,87 @@
+.App {
+  min-height: 100vh;
+  background-color: #f0f2f5;
+}
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-card {
+  width: 400px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.content-area {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-actions {
+  margin-bottom: 16px;
+}
+
+.photo-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-item {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.photo-item:hover {
+  transform: scale(1.05);
+}
+
+.status-new {
+  background-color: #52c41a;
+  color: white;
+}
+
+.status-discussion {
+  background-color: #1890ff;
+  color: white;
+}
+
+.status-approved {
+  background-color: #722ed1;
+  color: white;
+}
+
+.status-work {
+  background-color: #13c2c2;
+  color: white;
+}
+
+.status-done {
+  background-color: #000;
+  color: white;
+}
+
+.status-rejected {
+  background-color: #ff4d4f;
+  color: white;
+}
+
+.status-filling {
+  background-color: #d9d9d9;
+  color: #666;
+}
