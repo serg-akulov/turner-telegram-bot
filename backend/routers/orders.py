@@ -4,6 +4,9 @@ from typing import List, Optional
 from datetime import datetime
 import database
 from routers.auth import verify_token
+import httpx
+import os
+import config
 
 router = APIRouter()
 
@@ -77,14 +80,59 @@ async def update_order(
 ):
     """Обновить заказ"""
     try:
+        current_order = database.get_order(order_id)
+        if not current_order:
+            raise HTTPException(status_code=404, detail="Заказ не найден")
+
+        old_status = current_order.get('status')
+        
         if order_update.status:
             database.update_order_field(order_id, 'status', order_update.status)
+            
+            # Если статус изменился - отправляем уведомление
+            if old_status != order_update.status:
+                await send_status_update_notification(
+                    current_order['user_id'], 
+                    order_id, 
+                    order_update.status
+                )
+
         if order_update.internal_note is not None:
             database.update_order_field(order_id, 'internal_note', order_update.internal_note)
 
         return {"message": "Заказ обновлен успешно"}
     except Exception as e:
+        print(f"Update order error: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка обновления заказа: {str(e)}")
+
+async def send_status_update_notification(user_id: int, order_id: int, new_status: str):
+    """Отправить уведомление клиенту через Telegram Bot API"""
+    status_map = {
+        'new': '🔥 НОВЫЙ (Принят в обработку)',
+        'discussion': '💬 Обсуждение деталей',
+        'approved': '🛠 Одобрен / В работе',
+        'work': '⚙️ Выполняется',
+        'done': '✅ ГОТОВ!',
+        'rejected': '❌ Отказ'
+    }
+    
+    status_text = status_map.get(new_status, new_status)
+    message_text = f"⚙️ <b>Статус вашего заказа №{order_id} изменен:</b>\n\n🔹 {status_text}"
+    
+    bot_token = config.BOT_TOKEN
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            payload = {
+                "chat_id": user_id,
+                "text": message_text,
+                "parse_mode": "HTML"
+            }
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Failed to send Telegram notification: {e}")
 
 @router.get("/{order_id}/photos")
 async def get_order_photos(order_id: int, payload: dict = Depends(verify_token)):

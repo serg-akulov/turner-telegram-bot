@@ -5,3 +5,4 @@ python-dotenv==1.0.0
 python-multipart==0.0.6
 bcrypt==4.0.1
 python-jose[cryptography]==3.3.0
+httpx==0.25.1

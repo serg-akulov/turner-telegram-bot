@@ -51,6 +51,7 @@ services:
       - DB_PASS=${DB_PASS:-turner_password}
       - ADMIN_PANEL_PASSWORD=${ADMIN_PANEL_PASSWORD:-admin123}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this}
+      - BOT_TOKEN=${BOT_TOKEN}
     volumes:
       - ./database.py:/app/database.py
       - ./config.py:/app/config.py
