@@ -303,7 +303,7 @@ const Orders = () => {
                   {photos.map((photoId, index) => (
                     <Image
                       key={index}
-                      src={`https://api.telegram.org/file/bot${process.env.REACT_APP_BOT_TOKEN}/${photoId}`}
+                      src={photoId} // Теперь тут полная ссылка
                       alt={`Фото ${index + 1}`}
                       className="photo-item"
                     />

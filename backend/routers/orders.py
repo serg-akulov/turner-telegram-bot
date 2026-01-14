@@ -136,14 +136,36 @@ async def send_status_update_notification(user_id: int, order_id: int, new_statu
 
 @router.get("/{order_id}/photos")
 async def get_order_photos(order_id: int, payload: dict = Depends(verify_token)):
-    """Получить фото заказа"""
+    """Получить рабочие ссылки на фото заказа"""
     try:
         order = database.get_order(order_id)
         if not order or not order['photo_file_id']:
             return {"photos": []}
 
-        raw_photos = order['photo_file_id'].split(',')
-        photos = [p[2:] if p.startswith(('p:', 'd:')) else p for p in raw_photos]
-        return {"photos": photos}
+        raw_ids = order['photo_file_id'].split(',')
+        # Очищаем ID от префиксов p: и d:
+        clean_ids = [p[2:] if p.startswith(('p:', 'd:')) else p for p in raw_ids]
+        
+        photo_urls = []
+        bot_token = config.BOT_TOKEN
+        
+        async with httpx.AsyncClient() as client:
+            for file_id in clean_ids:
+                try:
+                    # 1. Получаем путь к файлу через getFile
+                    file_info_url = f"https://api.telegram.org/bot{bot_token}/getFile?file_id={file_id}"
+                    resp = await client.get(file_info_url)
+                    
+                    if resp.status_code == 200:
+                        file_path = resp.json().get('result', {}).get('file_path')
+                        if file_path:
+                            # 2. Формируем прямую ссылку на скачивание
+                            full_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
+                            photo_urls.append(full_url)
+                except Exception as e:
+                    print(f"Error resolving file_id {file_id}: {e}")
+                    
+        return {"photos": photo_urls}
     except Exception as e:
+        print(f"Get photos error: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка получения фото: {str(e)}")
