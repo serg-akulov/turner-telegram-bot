@@ -123,11 +123,19 @@ async def cmd_cancel(message: types.Message, state: FSMContext):
     await message.answer(get_text('msg_order_canceled'))
 
 # 1. ФОТО
-@dp.message(OrderForm.photo, F.photo)
+@dp.message(OrderForm.photo, F.photo | F.document)
 async def process_photo(message: types.Message, state: FSMContext):
     data = await state.get_data()
     p_ids = data.get('photo_ids', [])
-    p_ids.append(message.photo[-1].file_id)
+    
+    if message.photo:
+        p_ids.append(f"p:{message.photo[-1].file_id}")
+    elif message.document and message.document.mime_type.startswith('image/'):
+        p_ids.append(f"d:{message.document.file_id}")
+    else:
+        await message.answer("⚠️ Пожалуйста, пришлите фото или изображение файлом.")
+        return
+
     await state.update_data(photo_ids=p_ids)
     await message.answer(f"📸 Фото {len(p_ids)} принято.", reply_markup=kb_photo_step())
 
@@ -266,13 +274,26 @@ async def notify_admin(order_id):
             f"📝: {order['comment']}\n\n"
             f"<i>Reply для ответа.</i>")
     try:
-        p_ids = order['photo_file_id'].split(',') if order['photo_file_id'] else []
-        if len(p_ids) > 1:
-            mg = [InputMediaPhoto(media=pid) for pid in p_ids]
-            await bot.send_media_group(aid, media=mg)
+        raw_ids = order['photo_file_id'].split(',') if order['photo_file_id'] else []
+        media = []
+        for rid in raw_ids:
+            if rid.startswith('p:'):
+                media.append(types.InputMediaPhoto(media=rid[2:]))
+            elif rid.startswith('d:'):
+                media.append(types.InputMediaDocument(media=rid[2:]))
+            else:
+                # На случай старых записей без префикса
+                media.append(types.InputMediaPhoto(media=rid))
+
+        if len(media) > 1:
+            await bot.send_media_group(aid, media=media)
             await bot.send_message(aid, text, parse_mode="HTML")
-        elif len(p_ids) == 1:
-            await bot.send_photo(aid, p_ids[0], caption=text, parse_mode="HTML")
+        elif len(media) == 1:
+            m = media[0]
+            if isinstance(m, types.InputMediaPhoto):
+                await bot.send_photo(aid, m.media, caption=text, parse_mode="HTML")
+            else:
+                await bot.send_document(aid, m.media, caption=text, parse_mode="HTML")
         else:
             await bot.send_message(aid, text, parse_mode="HTML")
     except Exception as e:
@@ -283,7 +304,7 @@ async def notify_admin(order_id):
 async def cmd_admin_auth(message: types.Message):
     args = message.text.split()
     if len(args) > 1 and args[1] == config.BOT_ADMIN_PASSWORD:
-        database.update_setting("admin_chat_id", str(message.chat.id))
+        database.update_bot_config("admin_chat_id", str(message.chat.id))
         await message.answer("✅ Админ авторизован.")
     else:
         await message.answer("❌ Неверный пароль.")
@@ -335,6 +356,13 @@ async def check_lost_state(message, state):
         has_photos = order['photo_file_id'] is not None and len(str(order['photo_file_id'])) > 5
         
         if not has_photos:
+            # Если пришло фото - обрабатываем его
+            if message.photo or (message.document and message.document.mime_type.startswith('image/')):
+                if state: await state.set_state(OrderForm.photo)
+                # Передаем управление process_photo, она теперь умеет вешать префиксы
+                await process_photo(message, state or FSMContext(storage=dp.storage, key=types.StorageKey(bot.id, message.chat.id, message.from_user.id)))
+                return
+
             if get_config_bool('is_photo_required'):
                 await message.answer(get_text('err_photo_required'))
                 return
@@ -342,7 +370,7 @@ async def check_lost_state(message, state):
             if state: 
                 await state.update_data(order_id=filling_id)
                 await state.set_state(OrderForm.photo)
-            await process_photo_done(message, state or FSMContext(storage=dp.storage, key=types.StorageKey(bot.id, message.chat.id, message.from_user.id), parent=None))
+            await process_photo_done(message, state or FSMContext(storage=dp.storage, key=types.StorageKey(bot.id, message.chat.id, message.from_user.id)))
             return
 
         if not order['work_type']:

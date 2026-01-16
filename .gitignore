@@ -5,6 +5,7 @@ env/
 # Личные настройки и пароли
 .env
 php_config.php
+dev_agent_context/
 
 # Системный мусор
 __pycache__/

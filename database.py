@@ -77,3 +77,68 @@ def cancel_old_filling_orders(user_id):
         # СТАЛО: status='rejected' (Правильно!)
         cur.execute("UPDATE orders SET status='rejected' WHERE user_id=%s AND status='filling'", (user_id,))
     conn.close()
+
+# --- НОВЫЕ ФУНКЦИИ ДЛЯ FASTAPI ---
+def get_orders_paginated(limit=20, offset=0, status_filter=None):
+    """Получить заказы с пагинацией"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            if status_filter:
+                cur.execute("""
+                    SELECT * FROM orders
+                    WHERE status = %s
+                    ORDER BY id DESC
+                    LIMIT %s OFFSET %s
+                """, (status_filter, limit, offset))
+            else:
+                cur.execute("""
+                    SELECT * FROM orders
+                    ORDER BY id DESC
+                    LIMIT %s OFFSET %s
+                """, (limit, offset))
+            orders = cur.fetchall()
+            return orders
+    finally:
+        conn.close()
+
+def get_order_statistics():
+    """Получить статистику заказов"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Всего заказов
+            cur.execute("SELECT COUNT(*) as total FROM orders")
+            total = cur.fetchone()['total']
+
+            # Новых заказов
+            cur.execute("SELECT COUNT(*) as new FROM orders WHERE status = 'new'")
+            new = cur.fetchone()['new']
+
+            # Активных заказов (новые + в работе + обсуждение)
+            cur.execute("""
+                SELECT COUNT(*) as active FROM orders
+                WHERE status IN ('new', 'discussion', 'approved', 'work')
+            """)
+            active = cur.fetchone()['active']
+
+            return {
+                "total_orders": total,
+                "new_orders": new,
+                "active_orders": active
+            }
+    finally:
+        conn.close()
+
+def update_bot_config(key, value):
+    """Обновить настройку бота в таблице bot_config"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO bot_config (cfg_key, cfg_value, description)
+                VALUES (%s, %s, '')
+                ON DUPLICATE KEY UPDATE cfg_value = %s
+            """, (key, value, value))
+    finally:
+        conn.close()
